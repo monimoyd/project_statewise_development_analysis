@@ -1,0 +1,67 @@
+Hadoop to create HDFS directory for output:
+
+hadoop fs -mkdir districts_having_100percent_objectives
+hadoop fs -mkdir districts_having_80percent_objectives
+
+Mysql Start:
+sudo service mysqld start
+mysql -u root
+
+
+Mysql command to create database bpl_results
+
+create database bpl_results;
+use bpl_results;
+
+Mysql command to Create tables in mysql:
+
+create table districts_having_100percent_objectives (
+    -> name varchar(40)
+    -> );
+
+create table districts_having_80percent_objectives ( name varchar(40) );
+
+Pig Commands for task1:
+
+DEFINE XPath org.apache.pig.piggybank.evaluation.xml.XPath;
+row_physical_progress = LOAD 'hdfs://localhost:9000/flume_import' USING org.apache.pig.piggybank.storage.XMLLoader('row') as (row:chararray); 
+physical_progress = FOREACH row_physical_progress GENERATE XPath(row, 'row/State_Name') AS State_Name,
+                    XPath(row, 'row/District_Name') AS District_Name,
+                    XPath(row, 'row/Project_Objectives_IHHL_BPL') AS Project_Objectives_IHHL_BPL,
+                    XPath(row, 'row/Project_Objectives_IHHL_APL') AS Project_Objectives_IHHL_APL,
+                    XPath(row, 'row/Project_Objectives_IHHL_TOTAL') AS Project_Objectives_IHHL_TOTAL,
+                    XPath(row, 'row/Project_Objectives_SCW') AS Project_Objectives_SCW,
+
+                    XPath(row, 'row/Project_Objectives_Anganwadi_Toilets') AS Project_Objectives_Anganwadi_Toilets,
+                    XPath(row, 'row/Project_Objectives_RSM') AS Project_Objectives_RSM,
+                    XPath(row, 'row/Project_Objectives_PC') AS Project_Objectives_PC,
+                    XPath(row, 'row/Project_Performance-IHHL_BPL') AS Project_Performance_IHHL_BPL,
+                    XPath(row, 'row/Project_Performance-IHHL_APL') AS Project_Performance_IHHL_APL,
+                    XPath(row, 'row/Project_Performance-IHHL_TOTAL') AS Project_Performance_IHHL_TOTAL,
+                    XPath(row, 'row/Project_Performance-SCW') AS Project_Performance_SCW,
+                    XPath(row, 'row/Project_Performance-School_Toilets') AS Project_Performance_School_Toilets,
+                    XPath(row, 'row/Project_Performance-Anganwadi_Toilets') AS Project_Performance_Anganwadi_Toilets,
+                    XPath(row, 'row/Project_Performance-RSM') AS Project_Performance_RSM,
+                    XPath(row, 'row/Project_Performance-PC') AS Project_Performance_PC;
+
+physical_progress_100_percent_bpl = FILTER physical_progress BY Project_Objectives_IHHL_BPL == Project_Performance_IHHL_BPL;
+district_100_percent_bpl = FOREACH physical_progress_100_percent_bpl GENERATE District_Name;
+STORE district_100_percent_bpl INTO 'hdfs://localhost:9000/districts_having_100percent_objectives'
+
+
+Sqoop Command for task1
+
+sqoop export --connect jdbc:mysql://localhost/bpl_results --username 'root' --table 'districts_having_100percent_objectives' --export-dir '/districts_having_100percent_objectives' --input-fields-terminated-by ','  -m 1 --columns name
+
+
+PIG commands for task2
+
+REGISTER /home/acadgild/project2/BPLUDF.jar;
+physical_progress_80_percent_bpl = FILTER physical_progress BY bpludf.FilterDistrictsHavingEightyPercentBPL(TOTUPLE(Project_Objectives_IHHL_BPL, Project_Performance_IHHL_BPL));
+district_80_percent_bpl = FOREACH physical_progress_80_percent_bpl GENERATE District_Name;
+STORE district_80_percent_bpl INTO 'hdfs://localhost:9000/districts_having_80percent_objectives';
+
+Sqoop commands for task2
+
+sqoop export --connect jdbc:mysql://localhost/bpl_results --username 'root' --table 'districts_having_100percent_objectives' --export-dir '/districts_having_100percent_objectives' --input-fields-terminated-by ','  -m 1 --columns name
+
